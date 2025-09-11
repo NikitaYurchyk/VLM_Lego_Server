@@ -223,7 +223,7 @@ Respond with ONLY the classification category."""
             else:
                 state.message_type = "repeat"
             
-        state.is_step_complete = True
+        # Don't set step completion status here - this is just message classification
         return state
     
     # Routing Methods
@@ -259,19 +259,23 @@ Respond with ONLY the classification category."""
     async def next_step(self, state: AssemblyState) -> AssemblyState:
         """Move to next step"""
         if state.current_step < state.max_steps:
-            # state.current_step += 1
-            state.feedback = f"Moving to step {state.current_step}"
+            # state.current_step += 1  # Unity handles the increment
+            state.feedback = f"Moving to next step"
+            state.is_step_complete = True  # Tell Unity to execute step change
         else:
             state.feedback = "Already at the last step"
+            state.is_step_complete = False
         return state
     
     async def prev_step(self, state: AssemblyState) -> AssemblyState:
         """Move to previous step"""
         if state.current_step > 1:
-            # state.current_step -= 1
-            state.feedback = f"Moving to step {state.current_step}"
+            # state.current_step -= 1  # Unity handles the decrement
+            state.feedback = f"Moving to previous step"
+            state.is_step_complete = True  # Tell Unity to execute step change
         else:
             state.feedback = "Already at the first step"
+            state.is_step_complete = False
         return state
     
     async def reset_assembly(self, state: AssemblyState) -> AssemblyState:
@@ -289,6 +293,7 @@ Respond with ONLY the classification category."""
             state.feedback = f"For step {state.current_step}, I have multiple reference images including close-up views. Please take a closer, detailed image of your current assembly focusing on the connection points and small pieces."
         else:
             state.feedback = "Please provide a closer image of your assembly focusing on the connection points and details."
+        state.is_step_complete = True  # Tell Unity to execute zoom in
         return state
     
     async def zoom_out(self, state: AssemblyState) -> AssemblyState:
@@ -298,6 +303,7 @@ Respond with ONLY the classification category."""
             state.feedback = f"For step {state.current_step}, I have multiple reference images including wider overview shots. Please take a wider view showing your entire current assembly progress."
         else:
             state.feedback = "Please provide a wider view of your assembly showing the overall structure."
+        state.is_step_complete = True  # Tell Unity to execute zoom out
         return state
     
     async def rotate_left(self, state: AssemblyState) -> AssemblyState:
@@ -307,6 +313,7 @@ Respond with ONLY the classification category."""
             state.feedback = f"For step {state.current_step}, I have reference images from multiple angles. Please take an image of your assembly from the left side - this will help me compare against the side-view reference images."
         else:
             state.feedback = "Please provide an image of your assembly from the left side."
+        state.is_step_complete = True  # Tell Unity to execute rotate left
         return state
     
     async def rotate_right(self, state: AssemblyState) -> AssemblyState:
@@ -316,6 +323,7 @@ Respond with ONLY the classification category."""
             state.feedback = f"For step {state.current_step}, I have reference images from multiple angles. Please take an image of your assembly from the right side - this will help me compare against the side-view reference images."
         else:
             state.feedback = "Please provide an image of your assembly from the right side."
+        state.is_step_complete = True  # Tell Unity to execute rotate right
         return state
     
     async def show_image(self, state: AssemblyState) -> AssemblyState:
@@ -339,6 +347,7 @@ Respond with ONLY the classification category."""
     async def repeat_instruction(self, state: AssemblyState) -> AssemblyState:
         """Repeat current instruction"""
         state.feedback = f"Step {state.current_step}: {state.instruction_text or 'No instruction available'}"
+        state.is_step_complete = True  # Tell Unity to execute repeat highlighting
         return state
     
     async def get_current_step(self, state: AssemblyState) -> AssemblyState:
@@ -518,14 +527,15 @@ Respond with ONLY the classification category."""
 
         ## VERIFICATION CRITERIA
 
-        ### ✅ PASS CONDITIONS (set "step_complete": true)
+        ### PASS CONDITIONS (set "step_complete": true)
         - **Structural Match:** User's assembly shows the same LEGO structure as references
-        - **Piece Placement:** All required pieces are in correct positions (±1 stud tolerance for minor positioning)
+        - **Piece Placement:** All required pieces are in correct positions but assembly images could be taken from different angles and positions so exact placement in photo doesn't need to match reference exactly. Pay attention to overall structure and connections and be flexible with placement.
+        - **Color Accuracy:** Visible pieces match expected colors but if lighting causes minor color shifts, use best judgment. Transparent pieces are acceptable if they match the intended piece type.
         - **Connection Integrity:** Pieces appear properly connected and stable
         - **Angle Flexibility:** User's photo angle doesn't need to match reference exactly
         - **Confidence Threshold:** 75%+ confidence that assembly is structurally correct
 
-        ### ❌ FAIL CONDITIONS (set "step_complete": false)
+        ### FAIL CONDITIONS (set "step_complete": false)
         - **No LEGO Content:** User images don't show actual physical LEGO pieces
         - **Missing Components:** Required pieces are absent or incorrectly placed
         - **Structural Differences:** Assembly doesn't match the target design
@@ -536,8 +546,8 @@ Respond with ONLY the classification category."""
         1. **Reference Understanding:** Study all {num_ref_images} reference images to build complete mental model of target assembly
         2. **User Assembly Review:** Examine user's photos for structural elements, piece placement, and connections
         3. **Spatial Reasoning:** Account for different camera angles - focus on underlying structure, not photo perspective
-        4. **Component Verification:** Check that all visible pieces match expected colors, sizes, and positions
-
+        4. **Component Verification:** Check that all visible pieces match expected colors, sizes, and placements
+        5. **Previous Steps Context:** Consider a previous assembly step which LEGO pieces might already be in place and help understand what pieces are relevant for the current step.
         ## RESPONSE REQUIREMENTS
 
         **Tone:** Encouraging and constructive - acknowledge effort and provide specific guidance
@@ -547,10 +557,10 @@ Respond with ONLY the classification category."""
 
         ## DECISION EXAMPLES
 
-        - **Different angle, correct build** → ✅ "step_complete": true
-        - **Missing 2x4 blue brick on left side** → ❌ "step_complete": false
-        - **Pieces present but not connected** → ❌ "step_complete": false  
-        - **Screenshot instead of physical LEGO** → ❌ "step_complete": false
+        - **Different angle, correct build** → "step_complete": true
+        - **Missing 2x4 blue brick on left side** →  "step_complete": false
+        - **Pieces present but not connected** → "step_complete": false  
+        - **Screenshot instead of physical LEGO** →  "step_complete": false
 
         JSON Response:
         {{
@@ -619,6 +629,7 @@ Respond with ONLY the classification category."""
                     "required_actions": ["Please review the current assembly"],
                     "confidence": 5
                 }
+                state.is_step_complete = False
                 
         except TimeoutError as e:
             print(f"Timeout comparing assembly: {e}")
@@ -629,6 +640,7 @@ Respond with ONLY the classification category."""
                 "required_actions": ["Unable to analyze assembly due to timeout. Please try again."],
                 "confidence": 0
             }
+            state.is_step_complete = False
             raise  # Re-raise to be handled by the parent handler
         except Exception as e:
             print(f"Error comparing assembly: {e}")
@@ -639,6 +651,7 @@ Respond with ONLY the classification category."""
                 "required_actions": ["Error analyzing assembly. Please try again."],
                 "confidence": 0
             }
+            state.is_step_complete = False
             
         return state
     
@@ -715,7 +728,7 @@ Respond with ONLY the classification category."""
         current_completed_step = state.current_step        
         if state.current_step < state.max_steps:
             # state.current_step += 1
-            state.feedback = f"Great job! Step {current_completed_step} completed successfully. You're now on step {state.current_step}!"
+            state.feedback = f"Great job! Step {current_completed_step} completed successfully. You're now on step {state.current_step + 1} !"
         else:
             state.feedback = "Congratulations! You've completed the entire LEGO assembly!"
             

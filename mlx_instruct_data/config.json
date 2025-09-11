@@ -1,0 +1,17 @@
+{
+  "model": "mlx-community/llava-1.5-7b-4bit",
+  "data": "mlx_instruct_data/train_instruct.jsonl",
+  "lora_layers": 16,
+  "batch_size": 1,
+  "learning_rate": 1e-05,
+  "num_epochs": 3,
+  "steps_per_eval": 50,
+  "save_every": 100,
+  "adapter_path": "adapters",
+  "max_seq_len": 2048,
+  "vision_config": {
+    "max_image_size": 768,
+    "image_token": "<image>"
+  },
+  "valid_data": "mlx_instruct_data/valid_instruct.jsonl"
+}
