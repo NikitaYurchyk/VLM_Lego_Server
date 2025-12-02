@@ -172,14 +172,12 @@ class DatabaseService:
         
         if img_path:
             if img_path.startswith('./instructions_with_more_ref_imgs/') or 'instructions_with_more_ref_imgs' in (json_file_path or ''):
-                # Handle multiple reference images from instructions_with_more_ref_imgs
                 if instruction.get('assembly_imgs'):
                     imgs_path = instruction['assembly_imgs']
                     if imgs_path.startswith('/images/'):
                         step_dir = imgs_path.replace('/images/', '')
                         step_images_dir = f"./instructions_with_more_ref_imgs/images/{step_dir}"
                         
-                        # Load all images from the step directory
                         if os.path.exists(step_images_dir) and os.path.isdir(step_images_dir):
                             try:
                                 image_files = [f for f in os.listdir(step_images_dir) 
@@ -205,7 +203,6 @@ class DatabaseService:
                             except Exception as e:
                                 print(f"Warning: Could not access directory {step_images_dir}: {e}")
                 
-                # Also try to load original single image if available
                 if not reference_image_base64 and 'assembly_img' in instruction:
                     filename = instruction['assembly_img'].split('/')[-1]
                     single_img_path = f"./instructions/images/{filename}"
@@ -216,7 +213,6 @@ class DatabaseService:
                     except FileNotFoundError:
                         print(f"Warning: Image file not found: {single_img_path}")
             else:
-                # Handle single reference image from regular instructions
                 filename = img_path.split('/')[-1]  
                 single_img_path = f"./instructions/images/{filename}"
                 
@@ -244,11 +240,9 @@ class DatabaseService:
                 where={"step": step_number}
             )
             
-            # Reconstruct reference_images list from separate fields
             if results.get("metadatas"):
                 for metadata_list in results["metadatas"]:
                     for metadata in metadata_list:
-                        # Reconstruct the reference images list
                         reference_images = []
                         num_images = metadata.get("num_reference_images", 0)
                         
@@ -259,7 +253,6 @@ class DatabaseService:
                         
                         metadata["reference_images"] = reference_images
                         
-                        # Ensure has_multiple_images field exists
                         if "has_multiple_images" not in metadata:
                             metadata["has_multiple_images"] = len(reference_images) > 0
             

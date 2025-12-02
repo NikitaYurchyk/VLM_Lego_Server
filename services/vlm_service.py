@@ -56,7 +56,6 @@ class ChatHandler:
                     "message_type": vlm_response.get("message_type", "unknown"),
                     "next_step": vlm_response.get("next_step", 1)
                 },
-                "echo": vlm_response.get("feedback", ""),
                 "original_message": message,
                 "timestamp": datetime.now().isoformat(),
                 "client_id": client_id,
@@ -116,7 +115,6 @@ class ChatHandler:
                     "message_type": vlm_response.get("message_type", "unknown"),
                     "next_step": vlm_response.get("next_step", 1)
                 },
-                "echo": vlm_response.get("feedback", ""),
                 "original_message": message,
                 "timestamp": datetime.now().isoformat(),
                 "client_id": client_id,
